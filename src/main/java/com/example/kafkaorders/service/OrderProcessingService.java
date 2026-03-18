@@ -7,6 +7,8 @@ import com.example.kafkaorders.entity.ProcessedOrderEntity;
 import com.example.kafkaorders.repository.ProcessedOrderRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
@@ -16,6 +18,8 @@ public class OrderProcessingService {
     private final OrderValidationService validationService;
     private final ProcessedOrderRepository repository;
     private final OrderEventPublisher publisher;
+    private static final Logger log = LoggerFactory.getLogger(OrderProcessingService.class);
+
 
     public OrderProcessingService(
             OrderValidationService validationService,
@@ -29,9 +33,11 @@ public class OrderProcessingService {
 
     public void process(OrderCreatedEvent event) {
         try {
+            log.info("Start processing event: eventId={}, orderId={}", event.eventId(), event.orderId());
             validationService.validate(event);
 
             if (repository.existsByEventId(event.eventId())) {
+                log.warn("Duplicate event detected, skipping: eventId={}", event.eventId());
                 return;
             }
 
@@ -45,6 +51,7 @@ public class OrderProcessingService {
             );
 
             repository.save(entity);
+            log.info("Order saved to DB: orderId={}", event.orderId());
 
             OrderProcessedEvent processedEvent = new OrderProcessedEvent(
                     event.eventId(),
@@ -57,7 +64,9 @@ public class OrderProcessingService {
             );
 
             publisher.publishProcessed(processedEvent);
+            log.info("Published OrderProcessedEvent: orderId={}", event.orderId());
         } catch (IllegalArgumentException | DataIntegrityViolationException ex) {
+            log.error("Order processing failed: orderId={}, reason={}", event.orderId(), ex.getMessage());
             OrderFailedEvent failedEvent = new OrderFailedEvent(
                     event.eventId(),
                     event.orderId(),

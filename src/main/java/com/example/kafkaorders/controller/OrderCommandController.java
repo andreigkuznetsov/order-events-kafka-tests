@@ -7,6 +7,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -18,6 +20,7 @@ public class OrderCommandController {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final TopicNames topicNames;
+    private static final Logger log = LoggerFactory.getLogger(OrderCommandController.class);
 
     public OrderCommandController(KafkaTemplate<String, Object> kafkaTemplate, TopicNames topicNames) {
         this.kafkaTemplate = kafkaTemplate;
@@ -26,6 +29,7 @@ public class OrderCommandController {
 
     @PostMapping
     public ResponseEntity<String> createOrder(@Valid @RequestBody CreateOrderRequest request) throws Exception {
+        log.info("Received REST request: orderId={}", request.orderId());
         OrderCreatedEvent event = new OrderCreatedEvent(
                 UUID.randomUUID().toString(),
                 request.orderId(),

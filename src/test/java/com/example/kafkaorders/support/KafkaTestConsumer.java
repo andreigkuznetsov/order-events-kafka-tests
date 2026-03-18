@@ -9,6 +9,7 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
+import java.time.Instant;
 
 public class KafkaTestConsumer<T> implements AutoCloseable {
 
@@ -35,6 +36,24 @@ public class KafkaTestConsumer<T> implements AutoCloseable {
             return null;
         }
         return records.iterator().next();
+    }
+
+    public ConsumerRecord<String, T> pollUntil(Duration timeout,
+                                               java.util.function.Predicate<ConsumerRecord<String, T>> predicate) {
+
+        Instant deadline = Instant.now().plus(timeout);
+
+        while (Instant.now().isBefore(deadline)) {
+            var records = consumer.poll(Duration.ofMillis(500));
+
+            for (ConsumerRecord<String, T> record : records) {
+                if (predicate.test(record)) {
+                    return record;
+                }
+            }
+        }
+
+        return null;
     }
 
     public void close() {

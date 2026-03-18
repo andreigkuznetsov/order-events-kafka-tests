@@ -36,3 +36,8 @@ app:
       orders-created: orders.created
       orders-processed: orders.processed
       orders-failed: orders.failed
+
+logging:
+  level:
+    root: INFO
+    com.example.kafkaorders: DEBUG

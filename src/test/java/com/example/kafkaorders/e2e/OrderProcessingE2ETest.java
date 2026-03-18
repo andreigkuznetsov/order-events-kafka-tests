@@ -10,7 +10,6 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
@@ -19,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class OrderProcessingE2ETest extends AbstractIntegrationTest {
 
     @Autowired
@@ -34,7 +32,7 @@ class OrderProcessingE2ETest extends AbstractIntegrationTest {
     }
 
     @Test
-    void shouldConsumeOrderSaveToDbAndPublishProcessedEvent() {
+    void shouldConsumeOrderSaveToDbAndPublishProcessedEvent() throws Exception {
         OrderCreatedEvent event = OrderEventFactory.validOrder();
 
         try (KafkaTestConsumer<OrderProcessedEvent> processedConsumer = new KafkaTestConsumer<>(
@@ -43,28 +41,31 @@ class OrderProcessingE2ETest extends AbstractIntegrationTest {
                 OrderProcessedEvent.class,
                 "orders.processed"
         )) {
-            kafkaTemplate.send("orders.created", event.orderId(), event);
+            kafkaTemplate.send("orders.created", event.orderId(), event)
+                    .get(5, TimeUnit.SECONDS);
 
             Awaitility.await()
-                    .atMost(10, TimeUnit.SECONDS)
+                    .atMost(15, TimeUnit.SECONDS)
                     .pollInterval(Duration.ofMillis(300))
                     .untilAsserted(() -> {
                         var savedOrder = repository.findByOrderId(event.orderId());
                         assertThat(savedOrder).isPresent();
+                        assertThat(savedOrder.get().getEventId()).isEqualTo(event.eventId());
+                        assertThat(savedOrder.get().getOrderId()).isEqualTo(event.orderId());
                         assertThat(savedOrder.get().getUserId()).isEqualTo(event.userId());
                         assertThat(savedOrder.get().getAmount()).isEqualByComparingTo(event.amount());
+                        assertThat(savedOrder.get().getCurrency()).isEqualTo(event.currency());
+                        assertThat(savedOrder.get().getProcessedAt()).isNotNull();
                     });
 
-            OrderProcessedEvent processedEvent = null;
-            Awaitility.await()
-                    .atMost(10, TimeUnit.SECONDS)
-                    .pollInterval(Duration.ofMillis(300))
-                    .untilAsserted(() -> {
-                        var record = processedConsumer.pollSingleRecord(Duration.ofMillis(500));
-                        assertThat(record).isNotNull();
-                        assertThat(record.value().orderId()).isEqualTo(event.orderId());
-                        assertThat(record.value().status()).isEqualTo("PROCESSED");
-                    });
+            var record = processedConsumer.pollUntil(
+                    Duration.ofSeconds(10),
+                    r -> r.value() != null && event.orderId().equals(r.value().orderId())
+            );
+
+            assertThat(record).isNotNull();
+            assertThat(record.value().orderId()).isEqualTo(event.orderId());
+            assertThat(record.value().status()).isEqualTo("PROCESSED");
         }
     }
 }

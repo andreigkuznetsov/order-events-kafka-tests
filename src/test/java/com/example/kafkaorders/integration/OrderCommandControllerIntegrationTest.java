@@ -1,9 +1,12 @@
 package com.example.kafkaorders.integration;
 
 import com.example.kafkaorders.dto.CreateOrderRequest;
+import com.example.kafkaorders.dto.OrderProcessedEvent;
 import com.example.kafkaorders.repository.ProcessedOrderRepository;
 import com.example.kafkaorders.support.AbstractIntegrationTest;
+import com.example.kafkaorders.support.KafkaTestConsumer;
 import org.awaitility.Awaitility;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,14 +36,30 @@ class OrderCommandControllerIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private ProcessedOrderRepository repository;
 
+    private KafkaTestConsumer<OrderProcessedEvent> processedConsumer;
+
     @BeforeEach
     void cleanDb() {
         repository.deleteAll();
     }
 
+    @AfterEach
+    void tearDown() {
+        if (processedConsumer != null) {
+            processedConsumer.close();
+        }
+    }
+
     @Test
     void shouldAcceptOrderViaHttpAndProcessItEndToEnd() {
         String orderId = "ORD-REST-" + UUID.randomUUID();
+
+        processedConsumer = new KafkaTestConsumer<>(
+                kafka.getBootstrapServers(),
+                "processed-rest-consumer-" + UUID.randomUUID(),
+                OrderProcessedEvent.class,
+                "orders.processed"
+        );
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -68,10 +87,24 @@ class OrderCommandControllerIntegrationTest extends AbstractIntegrationTest {
                 .untilAsserted(() -> {
                     var savedOrder = repository.findByOrderId(orderId);
                     assertThat(savedOrder).isPresent();
+                    assertThat(savedOrder.get().getOrderId()).isEqualTo(orderId);
                     assertThat(savedOrder.get().getUserId()).isEqualTo("USER-REST");
                     assertThat(savedOrder.get().getAmount()).isEqualByComparingTo(new BigDecimal("999.99"));
                     assertThat(savedOrder.get().getCurrency()).isEqualTo("RUB");
+                    assertThat(savedOrder.get().getProcessedAt()).isNotNull();
                 });
+
+        var processedRecord = processedConsumer.pollUntil(
+                Duration.ofSeconds(10),
+                record -> record.value() != null
+                        && orderId.equals(record.value().orderId())
+        );
+
+        assertThat(processedRecord).isNotNull();
+        assertThat(processedRecord.value().userId()).isEqualTo("USER-REST");
+        assertThat(processedRecord.value().amount()).isEqualByComparingTo(new BigDecimal("999.99"));
+        assertThat(processedRecord.value().currency()).isEqualTo("RUB");
+        assertThat(processedRecord.value().status()).isEqualTo("PROCESSED");
     }
 
     @Test
