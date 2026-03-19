@@ -7,21 +7,24 @@
 Реализует архитектуру, приближенную к production:
 - асинхронная обработка событий
 - идемпотентность
+- retry и Dead Letter Queue (DLQ)
 - валидация и обработка ошибок
-- полноценные end-to-end тесты с Testcontainers
+- наблюдаемость через Prometheus
+- end-to-end тесты с Testcontainers
 
 ---
 
 ## ⚙️ Технологии
 
 - Java 21
-- Spring Boot
+- Spring Boot 3
 - Apache Kafka
 - PostgreSQL
 - JUnit 5
 - Testcontainers
 - Awaitility
 - Gradle
+- Spring Actuator (Prometheus)
 
 ---
 
@@ -43,6 +46,19 @@
 
 ---
 
+## 🔄 Полный сценарий обработки заказа
+
+1. Клиент отправляет POST /api/orders
+2. Сервис публикует событие в Kafka (orders.created)
+3. Consumer читает событие
+4. Выполняется:
+- валидация
+- проверка идемпотентности
+- сохранение в БД
+5. Результат обработки:
+- ✅ success → orders.processed
+- ⚠ validation error → orders.failed
+- 🔁 technical error → retry → orders.dlq
 
 ---
 
@@ -57,6 +73,10 @@
 - Повторные события игнорируются по `eventId`
 - Исключает дубли в БД и повторную публикацию
 
+### ✔ Retry + DLQ
+- Технические ошибки → до 2 retry
+- После исчерпания → orders.dlq
+
 ### ✔ Обработка ошибок
 - Некорректные события отправляются в `orders.failed`
 - Содержат причину ошибки
@@ -68,6 +88,18 @@
 ### ✔ Логирование
 - Логи содержат `eventId` и `orderId`
 - Позволяет отследить полный жизненный цикл события
+
+---
+
+## 🔁 Retry & Dead Letter Queue (DLQ)
+### Типы ошибок
+#### 🟡 Business errors (валидация)
+- невалидные события
+- отправляются в orders.failed
+- retry не выполняется
+#### 🔴 Technical errors (временные сбои)
+- выполняется до 2 retry
+- после → orders.dlq
 
 ---
 
@@ -92,6 +124,8 @@
 - Kafka и PostgreSQL поднимаются через **Testcontainers**
 - Используются реальные сервисы (без моков)
 
+### 🔹 Retry / DLQ тест
+- техническая ошибка → retries → DLQ
 ---
 
 ## ▶️ Локальный запуск (Docker + приложение)
@@ -141,7 +175,7 @@ http://localhost:8080/swagger-ui.html
 ```
 
 Требования:
-- установлен и запущен Docker
+- установлен и запущен Docker (без поднятых контейнеров)
 
 ---
 
@@ -152,8 +186,9 @@ http://localhost:8080/swagger-ui.html
 ```bash
 POST /api/orders
 ```
+### Ручное тестирование
 
-Пример запроса:
+✔ Пример успешного запроса:
 
 ```bash
 {
@@ -164,11 +199,45 @@ POST /api/orders
 }
 ```
 
-Ожидаемо:
+Ожидаемый ответ:
+
+Status code: **202 Accepted**
 
 ```bash
 Order event published
 ```
+→ попадёт в orders.processed 
+
+❌ Валидационная ошибка:
+
+
+```bash
+{
+  "orderId": null,
+  "userId": "USER-1",
+  "amount": 1000,
+  "currency": "RUB"
+}
+```
+
+Ожидаемый ответ:
+
+Status code: **400 Bad Request**
+
+```bash
+{
+    "status": 400,
+    "error": "Validation failed",
+    "fields": {
+        "orderId": "orderId must not be blank"
+    }
+}
+```
+
+→ попадёт в orders.failed
+
+---
+
 
 ## 📈 Monitoring (Prometheus)
 
@@ -180,20 +249,14 @@ http://localhost:8080/actuator/prometheus
 
 Пример метрик:
 
-```bash
-HTTP:
-http_server_requests_seconds
-Kafka:
-spring_kafka_template_seconds
-spring_kafka_listener_seconds
-kafka_consumer_fetch_manager_records_consumed_total
-БД:
-hikaricp_connections
-spring_data_repository_invocations_seconds
-JVM:
-jvm_memory_used_bytes
-jvm_threads_live_threads
-```
+| Метрика                                             | Описание             |
+| --------------------------------------------------- | -------------------- |
+| http_server_requests_seconds                        | HTTP latency         |
+| spring_kafka_template_seconds                       | Kafka producer       |
+| spring_kafka_listener_seconds                       | Kafka consumer       |
+| kafka_consumer_fetch_manager_records_consumed_total | обработанные события |
+| hikaricp_connections                                | пул соединений       |
+| jvm_memory_used_bytes                               | использование памяти |
 
 #### Демонстрация работы:
 
@@ -230,8 +293,9 @@ listener       → Kafka consumer
 service        → бизнес-логика
 repository     → доступ к БД
 entity         → JPA сущности
-dto            → модели событий
-support        → утилиты для тестов
+dto            → события
+config         → Kafka / DLQ / topics
+support        → тестовые утилиты
 ```
 
 ---
@@ -240,9 +304,11 @@ support        → утилиты для тестов
 
 - Использование Testcontainers для реалистичных тестов
 - Покрытие happy-path и негативных сценариев
+- retry + DLQ
 - Тестирование асинхронных процессов через Awaitility
 - Реализация идемпотентной обработки событий
 - Практическое использование Kafka
+- observability через Prometheus
 
 ---
 
@@ -256,13 +322,15 @@ support        → утилиты для тестов
   
 ---
 
-## ⭐ Зачем этот проект
+## ⭐ Цель проекта
 
-- Проект демонстрирует навыки, необходимые для роли QA / AQA / SDET:
-- тестирование backend сервисов
+Проект демонстрирует навыки, необходимые для роли QA / AQA / SDET:
+- тестирование backend-сервисов
 - работа с Kafka
-- интеграционные и e2e тесты
+- интеграционные и E2E тесты
 - тестирование распределённых систем
+- обработка ошибок и retry
+- observability (метрики)
   
 ---
 
