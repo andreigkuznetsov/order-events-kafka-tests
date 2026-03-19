@@ -6,6 +6,7 @@ import com.example.kafkaorders.repository.ProcessedOrderRepository;
 import com.example.kafkaorders.service.OrderEventPublisher;
 import com.example.kafkaorders.service.OrderProcessingService;
 import com.example.kafkaorders.service.OrderValidationService;
+import com.example.kafkaorders.service.TechnicalFailureSimulationService;
 import com.example.kafkaorders.support.OrderEventFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,7 +34,13 @@ class OrderProcessingServiceTest {
 
     @Test
     void shouldPublishProcessedEventForValidOrder() {
-        var service = new OrderProcessingService(validationService, repository, publisher);
+        var technicalFailureSimulationService = mock(TechnicalFailureSimulationService.class);
+        var service = new OrderProcessingService(
+                validationService,
+                technicalFailureSimulationService,
+                repository,
+                publisher
+        );
         var event = OrderEventFactory.validOrder();
 
         when(repository.existsByEventId(event.eventId())).thenReturn(false);
@@ -48,7 +56,13 @@ class OrderProcessingServiceTest {
 
     @Test
     void shouldPublishFailedEventForInvalidOrder() {
-        var service = new OrderProcessingService(validationService, repository, publisher);
+        var technicalFailureSimulationService = mock(TechnicalFailureSimulationService.class);
+        var service = new OrderProcessingService(
+                validationService,
+                technicalFailureSimulationService,
+                repository,
+                publisher
+        );
         var event = OrderEventFactory.invalidWithoutOrderId();
 
         service.process(event);

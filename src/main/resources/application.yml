@@ -12,6 +12,7 @@ spring:
       properties:
         spring.json.trusted.packages: com.example.kafkaorders.dto
         spring.json.value.default.type: com.example.kafkaorders.dto.OrderCreatedEvent
+        spring.json.use.type.headers: false
 
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -29,6 +30,7 @@ spring:
       hibernate:
         format_sql: true
     show-sql: false
+    open-in-view: false
 
 app:
   kafka:
@@ -36,6 +38,7 @@ app:
       orders-created: orders.created
       orders-processed: orders.processed
       orders-failed: orders.failed
+      orders-dlq: orders.dlq
 
 logging:
   level:
@@ -47,4 +50,3 @@ management:
     web:
       exposure:
         include: health,info,prometheus
-

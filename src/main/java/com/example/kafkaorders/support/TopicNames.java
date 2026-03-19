@@ -15,13 +15,22 @@ public class TopicNames {
     @Value("${app.kafka.topics.orders-failed}")
     private String ordersFailed;
 
+    @Value("${app.kafka.topics.orders-dlq}")
+    private String ordersDlq;
+
     public String ordersCreated() {
         return ordersCreated;
     }
+
     public String ordersProcessed() {
         return ordersProcessed;
     }
+
     public String ordersFailed() {
         return ordersFailed;
+    }
+
+    public String ordersDlq() {
+        return ordersDlq;
     }
 }

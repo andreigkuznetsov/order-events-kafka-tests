@@ -2,6 +2,7 @@ package com.example.kafkaorders.unit;
 
 import com.example.kafkaorders.service.OrderValidationService;
 import com.example.kafkaorders.support.OrderEventFactory;
+import com.example.kafkaorders.exception.OrderValidationException;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,7 +16,7 @@ class OrderValidationServiceTest {
         var event = OrderEventFactory.invalidWithoutOrderId();
 
         assertThatThrownBy(() -> validationService.validate(event))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(OrderValidationException.class)
                 .hasMessage("orderId is required");
     }
 }

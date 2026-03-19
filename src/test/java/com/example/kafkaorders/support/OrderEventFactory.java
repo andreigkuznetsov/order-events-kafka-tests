@@ -1,7 +1,7 @@
 package com.example.kafkaorders.support;
 
-import com.example.kafkaorders.dto.OrderCreatedEvent;
 import com.example.kafkaorders.dto.CreateOrderRequest;
+import com.example.kafkaorders.dto.OrderCreatedEvent;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -40,6 +40,17 @@ public final class OrderEventFactory {
                 "USER-100",
                 new BigDecimal("1500.00"),
                 "RUB"
+        );
+    }
+
+    public static OrderCreatedEvent transientFailureOrder() {
+        return new OrderCreatedEvent(
+                UUID.randomUUID().toString(),
+                "ORD-RETRY-" + UUID.randomUUID(),
+                "FORCE_RETRY",
+                new BigDecimal("1500.00"),
+                "RUB",
+                Instant.now()
         );
     }
 }
