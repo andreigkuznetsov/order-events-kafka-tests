@@ -117,13 +117,19 @@ docker compose up -d
 #### 3. Проверить, что сервис работает
 
 ```bash
-http://localhost:8080
+http://localhost:8080/actuator/health
 ```
 
 Ожидаемо:
 
 ```bash
-Kafka Order Processing Service is running
+{"status":"UP"}
+```
+
+#### 3. Swagger
+
+```bash
+http://localhost:8080/swagger-ui.html
 ```
 
 ---
@@ -163,6 +169,46 @@ POST /api/orders
 ```bash
 Order event published
 ```
+
+## 📈 Monitoring (Prometheus)
+
+Приложение предоставляет метрики через Spring Boot Actuator:
+
+```bash
+http://localhost:8080/actuator/prometheus
+```
+
+Пример метрик:
+
+```bash
+HTTP:
+http_server_requests_seconds
+Kafka:
+spring_kafka_template_seconds
+spring_kafka_listener_seconds
+kafka_consumer_fetch_manager_records_consumed_total
+БД:
+hikaricp_connections
+spring_data_repository_invocations_seconds
+JVM:
+jvm_memory_used_bytes
+jvm_threads_live_threads
+```
+
+#### Демонстрация работы:
+
+После вызова:
+
+```bash
+POST /api/orders
+```
+
+наблюдается:
+
+- отправка события в Kafka
+- обработка consumer'ом
+- сохранение в БД
+- рост метрик producer/consumer
 
 ---
 
