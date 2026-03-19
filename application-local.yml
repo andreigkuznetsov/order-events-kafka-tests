@@ -1,0 +1,17 @@
+spring:
+  kafka:
+    bootstrap-servers: 127.0.0.1:9092
+
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5433/orders_db?sslmode=disable
+    username: postgres
+    password: postgres
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+logging:
+  level:
+    root: INFO
+    com.example.kafkaorders: INFO

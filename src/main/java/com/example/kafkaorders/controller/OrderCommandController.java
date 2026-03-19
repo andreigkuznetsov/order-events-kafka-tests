@@ -44,4 +44,13 @@ public class OrderCommandController {
 
         return ResponseEntity.accepted().body("Order event published");
     }
+
+    @RestController
+    public class HomeController {
+
+        @GetMapping("/")
+        public String home() {
+            return "Kafka Order Processing Service is running";
+        }
+    }
 }

@@ -41,3 +41,10 @@ logging:
   level:
     root: INFO
     com.example.kafkaorders: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
