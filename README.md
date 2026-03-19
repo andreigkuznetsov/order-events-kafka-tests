@@ -2,7 +2,6 @@
 
 [![TEST](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml)
 
-Integration and end-to-end tests for an event-driven order processing service built with Spring Boot, Apache Kafka, PostgreSQL, JUnit 5, and Testcontainers.
 
 # Kafka Order Processing Service
 
