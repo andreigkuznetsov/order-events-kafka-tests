@@ -1,3 +1,9 @@
+# order-events-kafka-tests
+
+[![TEST](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml)
+
+Integration and end-to-end tests for an event-driven order processing service built with Spring Boot, Apache Kafka, PostgreSQL, JUnit 5, and Testcontainers.
+
 # Kafka Order Processing Service
 
 ## 📌 Описание
@@ -281,7 +287,8 @@ POST /api/orders
 | ---------------- | --------------------------- |
 | orders.created   | входящие события заказов    |
 | orders.processed | успешно обработанные заказы |
-| orders.failed    | ошибки обработки            |
+| orders.failed    | бизнес-ошибки               |
+| orders.dlq       | технические ошибки          | 
 
 ---
 
