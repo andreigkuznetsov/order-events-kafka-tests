@@ -168,10 +168,34 @@ docker compose up -d
 http://localhost:8080/actuator/health
 ```
 
-Ожидаемо:
+Ожидаемый ответ:
 
 ```bash
-{"status":"UP"}
+{
+  "status": "UP",
+  "components": {
+    "db": {
+      "status": "UP",
+      "details": {
+        "database": "PostgreSQL",
+        "validationQuery": "isValid()"
+      }
+    },
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        "total": 342819336192,
+        "free": 55184678912,
+        "threshold": 10485760,
+        "path": "D:\\git\\order-events-kafka-tests\\.",
+        "exists": true
+      }
+    },
+    "ping": {
+      "status": "UP"
+    }
+  }
+}
 ```
 
 #### 3. Swagger
