@@ -1,4 +1,3 @@
-# order-events-kafka-tests
 
 [![TEST](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml)
 
