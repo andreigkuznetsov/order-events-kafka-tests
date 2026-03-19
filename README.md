@@ -94,6 +94,40 @@
 
 ---
 
+## ▶️ Локальный запуск (Docker + приложение)
+
+#### 1. Поднять инфраструктуру
+
+```bash
+docker compose up -d
+```
+
+Поднимаются:
+
+- Kafka (port 9092)
+- Zookeeper (port 2181)
+- PostgreSQL (port 5433)
+
+#### 2. Запустить приложение
+
+```bash
+./gradlew bootRun --args="--spring.profiles.active=local"
+```
+
+#### 3. Проверить, что сервис работает
+
+```bash
+http://localhost:8080
+```
+
+Ожидаемо:
+
+```bash
+Kafka Order Processing Service is running
+```
+
+---
+
 ## ▶️ Как запустить тесты
 
 ```bash
@@ -122,6 +156,12 @@ POST /api/orders
   "amount": 1500.00,
   "currency": "RUB"
 }
+```
+
+Ожидаемо:
+
+```bash
+Order event published
 ```
 
 ---
