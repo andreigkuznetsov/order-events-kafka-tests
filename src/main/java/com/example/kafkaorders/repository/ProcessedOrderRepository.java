@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface ProcessedOrderRepository extends JpaRepository<ProcessedOrderEntity, Long> {
     Optional<ProcessedOrderEntity> findByOrderId(String orderId);
     boolean existsByEventId(String eventId);
+    boolean existsByOrderId(String orderId);
 }

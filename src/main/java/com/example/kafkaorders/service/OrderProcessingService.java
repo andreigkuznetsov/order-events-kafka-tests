@@ -60,7 +60,14 @@ public class OrderProcessingService {
         }
 
         if (repository.existsByEventId(event.eventId())) {
-            log.warn("Duplicate event skipped, eventId={}", event.eventId());
+            metricsService.recordDuplicate();
+            log.warn("Duplicate event skipped by eventId, eventId={}", event.eventId());
+            return;
+        }
+
+        if (repository.existsByOrderId(event.orderId())) {
+            metricsService.recordDuplicate();
+            log.warn("Duplicate order skipped by orderId, orderId={}", event.orderId());
             return;
         }
 
@@ -94,8 +101,9 @@ public class OrderProcessingService {
 
             log.info("Published processed event, orderId={}", event.orderId());
         } catch (DataIntegrityViolationException ex) {
-            if (repository.existsByEventId(event.eventId())) {
-                log.warn("Duplicate event detected after DB race, eventId={}", event.eventId());
+            if (repository.existsByEventId(event.eventId()) || repository.existsByOrderId(event.orderId())) {
+                metricsService.recordDuplicate();
+                log.warn("Duplicate detected after DB race, eventId={}, orderId={}", event.eventId(), event.orderId());
                 return;
             }
             throw ex;

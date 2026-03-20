@@ -14,6 +14,7 @@ public class OrderMetricsService {
     private final Counter processedCounter;
     private final Counter failedCounter;
     private final Counter dlqCounter;
+    private final Counter duplicateCounter;
     private final Timer processingTimer;
 
     public OrderMetricsService(MeterRegistry meterRegistry) {
@@ -31,6 +32,10 @@ public class OrderMetricsService {
 
         this.dlqCounter = Counter.builder("orders_dlq_total")
                 .description("Total number of order events sent to DLQ")
+                .register(meterRegistry);
+
+        this.duplicateCounter = Counter.builder("orders_duplicates_total")
+                .description("Total number of duplicate order events skipped")
                 .register(meterRegistry);
 
         this.processingTimer = Timer.builder("orders_processing_duration_ms")
@@ -53,6 +58,10 @@ public class OrderMetricsService {
 
     public void recordDlq() {
         dlqCounter.increment();
+    }
+
+    public void recordDuplicate() {
+        duplicateCounter.increment();
     }
 
     public void recordProcessingTime(long durationMillis) {

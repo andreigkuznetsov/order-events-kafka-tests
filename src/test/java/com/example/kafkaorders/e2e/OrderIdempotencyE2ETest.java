@@ -1,21 +1,17 @@
 package com.example.kafkaorders.e2e;
 
 import com.example.kafkaorders.dto.OrderCreatedEvent;
-import com.example.kafkaorders.dto.OrderProcessedEvent;
 import com.example.kafkaorders.repository.ProcessedOrderRepository;
 import com.example.kafkaorders.support.AbstractIntegrationTest;
-import com.example.kafkaorders.support.KafkaTestConsumer;
 import com.example.kafkaorders.support.OrderEventFactory;
 import org.awaitility.Awaitility;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -29,23 +25,24 @@ class OrderIdempotencyE2ETest extends AbstractIntegrationTest {
     @Autowired
     private ProcessedOrderRepository repository;
 
-    private KafkaTestConsumer<OrderProcessedEvent> processedConsumer;
-
     @BeforeEach
     void cleanDb() {
         repository.deleteAll();
     }
 
-    @AfterEach
-    void tearDown() {
-        if (processedConsumer != null) {
-            processedConsumer.close();
-        }
-    }
-
     @Test
     void shouldNotCreateDuplicateRecordForSameEventId() {
-        OrderCreatedEvent event = OrderEventFactory.validOrder();
+        String uniqueOrderId = "ORD-" + UUID.randomUUID();
+
+        OrderCreatedEvent base = OrderEventFactory.validOrder();
+        OrderCreatedEvent event = new OrderCreatedEvent(
+                UUID.randomUUID().toString(),
+                uniqueOrderId,
+                base.userId(),
+                base.amount(),
+                base.currency(),
+                Instant.now()
+        );
 
         OrderCreatedEvent duplicateEvent = new OrderCreatedEvent(
                 event.eventId(),
@@ -54,13 +51,6 @@ class OrderIdempotencyE2ETest extends AbstractIntegrationTest {
                 event.amount(),
                 event.currency(),
                 event.createdAt()
-        );
-
-        processedConsumer = new KafkaTestConsumer<>(
-                kafka.getBootstrapServers(),
-                "processed-idempotency-consumer-" + UUID.randomUUID(),
-                OrderProcessedEvent.class,
-                "orders.processed"
         );
 
         kafkaTemplate.send("orders.created", event.orderId(), event);
@@ -74,20 +64,65 @@ class OrderIdempotencyE2ETest extends AbstractIntegrationTest {
                     assertThat(repository.findByOrderId(event.orderId())).isPresent();
                 });
 
-        List<OrderProcessedEvent> processedEvents = new ArrayList<>();
+        var savedOrder = repository.findByOrderId(event.orderId()).orElseThrow();
 
-        var firstRecord = processedConsumer.pollSingleRecord(Duration.ofSeconds(5));
-        if (firstRecord != null) {
-            processedEvents.add(firstRecord.value());
-        }
+        assertThat(savedOrder.getOrderId()).isEqualTo(event.orderId());
+        assertThat(savedOrder.getEventId()).isEqualTo(event.eventId());
+        assertThat(savedOrder.getUserId()).isEqualTo(event.userId());
+        assertThat(savedOrder.getAmount()).isEqualTo(event.amount());
+        assertThat(savedOrder.getCurrency()).isEqualTo(event.currency());
+    }
 
-        var secondRecord = processedConsumer.pollSingleRecord(Duration.ofSeconds(2));
-        if (secondRecord != null) {
-            processedEvents.add(secondRecord.value());
-        }
+    @Test
+    void shouldNotCreateDuplicateRecordForSameOrderIdWithDifferentEventIds() {
+        String uniqueOrderId = "ORD-" + UUID.randomUUID();
 
-        assertThat(processedEvents).hasSize(1);
-        assertThat(processedEvents.getFirst().eventId()).isEqualTo(event.eventId());
-        assertThat(processedEvents.getFirst().orderId()).isEqualTo(event.orderId());
+        OrderCreatedEvent base = OrderEventFactory.validOrder();
+        OrderCreatedEvent firstEvent = new OrderCreatedEvent(
+                UUID.randomUUID().toString(),
+                uniqueOrderId,
+                base.userId(),
+                base.amount(),
+                base.currency(),
+                Instant.now()
+        );
+
+        OrderCreatedEvent secondEvent = new OrderCreatedEvent(
+                UUID.randomUUID().toString(),
+                uniqueOrderId,
+                firstEvent.userId(),
+                firstEvent.amount(),
+                firstEvent.currency(),
+                Instant.now()
+        );
+
+        kafkaTemplate.send("orders.created", firstEvent.orderId(), firstEvent);
+
+        Awaitility.await()
+                .atMost(10, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(300))
+                .untilAsserted(() -> {
+                    assertThat(repository.findAll()).hasSize(1);
+                    assertThat(repository.findByOrderId(firstEvent.orderId())).isPresent();
+                });
+
+        kafkaTemplate.send("orders.created", secondEvent.orderId(), secondEvent);
+
+        Awaitility.await()
+                .during(2, TimeUnit.SECONDS)
+                .atMost(5, TimeUnit.SECONDS)
+                .pollInterval(Duration.ofMillis(300))
+                .untilAsserted(() -> {
+                    assertThat(repository.findAll()).hasSize(1);
+                    assertThat(repository.findByOrderId(firstEvent.orderId())).isPresent();
+                });
+
+        var savedOrder = repository.findByOrderId(firstEvent.orderId()).orElseThrow();
+
+        assertThat(savedOrder.getOrderId()).isEqualTo(firstEvent.orderId());
+        assertThat(savedOrder.getEventId()).isEqualTo(firstEvent.eventId());
+        assertThat(savedOrder.getUserId()).isEqualTo(firstEvent.userId());
+        assertThat(savedOrder.getAmount()).isEqualTo(firstEvent.amount());
+        assertThat(savedOrder.getCurrency()).isEqualTo(firstEvent.currency());
     }
 }

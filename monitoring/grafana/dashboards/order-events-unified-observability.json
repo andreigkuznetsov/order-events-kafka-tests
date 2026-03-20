@@ -55,7 +55,7 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 0
       },
@@ -116,8 +116,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 4,
         "y": 0
       },
       "id": 2,
@@ -177,8 +177,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
-        "x": 12,
+        "w": 4,
+        "x": 8,
         "y": 0
       },
       "id": 3,
@@ -203,6 +203,67 @@
         }
       ],
       "title": "DLQ Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 12,
+        "y": 0
+      },
+      "id": 11,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "expr": "sum(orders_duplicates_total)",
+          "refId": "A"
+        }
+      ],
+      "title": "Duplicates Skipped",
       "type": "stat"
     },
     {
@@ -247,8 +308,8 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 16,
         "y": 0
       },
       "id": 4,
@@ -327,264 +388,14 @@
           "expr": "sum(rate(orders_dlq_total[1m]))",
           "legendFormat": "dlq",
           "refId": "D"
+        },
+        {
+          "expr": "sum(rate(orders_duplicates_total[1m]))",
+          "legendFormat": "duplicates",
+          "refId": "E"
         }
       ],
       "title": "Order Event Throughput",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ms",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 5
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(orders_processing_duration_ms_seconds_bucket[5m]))) * 1000",
-          "legendFormat": "p50",
-          "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(orders_processing_duration_ms_seconds_bucket[5m]))) * 1000",
-          "legendFormat": "p95",
-          "refId": "B"
-        },
-        {
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(orders_processing_duration_ms_seconds_bucket[5m]))) * 1000",
-          "legendFormat": "p99",
-          "refId": "C"
-        }
-      ],
-      "title": "Order Processing Duration",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 13
-      },
-      "id": 7,
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "sum(rate(http_server_requests_seconds_count[1m]))",
-          "legendFormat": "requests/sec",
-          "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000",
-          "legendFormat": "http p95",
-          "refId": "B"
-        }
-      ],
-      "title": "HTTP Traffic and Latency",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 13
-      },
-      "id": 8,
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "sum(rate(spring_kafka_template_seconds_count[1m]))",
-          "legendFormat": "producer ops",
-          "refId": "A"
-        },
-        {
-          "expr": "sum(rate(spring_kafka_listener_seconds_count[1m]))",
-          "legendFormat": "listener ops",
-          "refId": "B"
-        },
-        {
-          "expr": "sum(rate(kafka_consumer_fetch_manager_records_consumed_total[1m]))",
-          "legendFormat": "records consumed",
-          "refId": "C"
-        }
-      ],
-      "title": "Kafka Activity",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 21
-      },
-      "id": 9,
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"})",
-          "legendFormat": "heap used",
-          "refId": "A"
-        },
-        {
-          "expr": "sum(jvm_memory_max_bytes{area=\"heap\"})",
-          "legendFormat": "heap max",
-          "refId": "B"
-        }
-      ],
-      "title": "JVM Heap Memory",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 21
-      },
-      "id": 10,
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "sum(hikaricp_connections_active)",
-          "legendFormat": "active",
-          "refId": "A"
-        },
-        {
-          "expr": "sum(hikaricp_connections_idle)",
-          "legendFormat": "idle",
-          "refId": "B"
-        },
-        {
-          "expr": "sum(hikaricp_connections_pending)",
-          "legendFormat": "pending",
-          "refId": "C"
-        },
-        {
-          "expr": "sum(hikaricp_connections)",
-          "legendFormat": "total",
-          "refId": "D"
-        }
-      ],
-      "title": "DB Pool Health",
       "type": "timeseries"
     }
   ],
@@ -597,7 +408,7 @@
     "spring",
     "prometheus",
     "grafana",
-    "alerting"
+    "idempotency"
   ],
   "templating": {
     "list": []
@@ -610,6 +421,6 @@
   "timezone": "",
   "title": "Order Events Unified Observability",
   "uid": "order-events-unified",
-  "version": 3,
+  "version": 4,
   "weekStart": ""
 }

@@ -2,13 +2,13 @@ package com.example.kafkaorders.unit;
 
 import com.example.kafkaorders.dto.OrderFailedEvent;
 import com.example.kafkaorders.dto.OrderProcessedEvent;
+import com.example.kafkaorders.monitoring.OrderMetricsService;
 import com.example.kafkaorders.repository.ProcessedOrderRepository;
 import com.example.kafkaorders.service.OrderEventPublisher;
 import com.example.kafkaorders.service.OrderProcessingService;
 import com.example.kafkaorders.service.OrderValidationService;
 import com.example.kafkaorders.service.TechnicalFailureSimulationService;
 import com.example.kafkaorders.support.OrderEventFactory;
-import com.example.kafkaorders.monitoring.OrderMetricsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -47,12 +47,17 @@ class OrderProcessingServiceTest {
         var event = OrderEventFactory.validOrder();
 
         when(repository.existsByEventId(event.eventId())).thenReturn(false);
+        when(repository.existsByOrderId(event.orderId())).thenReturn(false);
 
         service.process(event);
 
         var eventCaptor = ArgumentCaptor.forClass(OrderProcessedEvent.class);
         verify(publisher).publishProcessed(eventCaptor.capture());
         verify(publisher, never()).publishFailed(any(OrderFailedEvent.class));
+        verify(orderMetricsService).recordProcessed();
+        verify(orderMetricsService, never()).recordFailed();
+        verify(orderMetricsService, never()).recordDuplicate();
+
         assertThat(eventCaptor.getValue().orderId()).isEqualTo(event.orderId());
         assertThat(eventCaptor.getValue().status()).isEqualTo("PROCESSED");
     }
@@ -74,6 +79,34 @@ class OrderProcessingServiceTest {
         var eventCaptor = ArgumentCaptor.forClass(OrderFailedEvent.class);
         verify(publisher).publishFailed(eventCaptor.capture());
         verify(publisher, never()).publishProcessed(any(OrderProcessedEvent.class));
+        verify(orderMetricsService).recordFailed();
+        verify(orderMetricsService, never()).recordProcessed();
+        verify(orderMetricsService, never()).recordDuplicate();
+
         assertThat(eventCaptor.getValue().reason()).contains("orderId is required");
+    }
+
+    @Test
+    void shouldSkipDuplicateOrderForSameOrderId() {
+        var technicalFailureSimulationService = mock(TechnicalFailureSimulationService.class);
+        var service = new OrderProcessingService(
+                validationService,
+                technicalFailureSimulationService,
+                repository,
+                publisher,
+                orderMetricsService
+        );
+        var event = OrderEventFactory.validOrder();
+
+        when(repository.existsByEventId(event.eventId())).thenReturn(false);
+        when(repository.existsByOrderId(event.orderId())).thenReturn(true);
+
+        service.process(event);
+
+        verify(publisher, never()).publishProcessed(any(OrderProcessedEvent.class));
+        verify(publisher, never()).publishFailed(any(OrderFailedEvent.class));
+        verify(orderMetricsService).recordDuplicate();
+        verify(orderMetricsService, never()).recordProcessed();
+        verify(orderMetricsService, never()).recordFailed();
     }
 }
