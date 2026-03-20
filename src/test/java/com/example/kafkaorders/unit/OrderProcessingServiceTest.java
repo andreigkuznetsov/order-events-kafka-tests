@@ -8,6 +8,7 @@ import com.example.kafkaorders.service.OrderProcessingService;
 import com.example.kafkaorders.service.OrderValidationService;
 import com.example.kafkaorders.service.TechnicalFailureSimulationService;
 import com.example.kafkaorders.support.OrderEventFactory;
+import com.example.kafkaorders.monitoring.OrderMetricsService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +32,7 @@ class OrderProcessingServiceTest {
     private OrderEventPublisher publisher;
 
     private final OrderValidationService validationService = new OrderValidationService();
+    private final OrderMetricsService orderMetricsService = mock(OrderMetricsService.class);
 
     @Test
     void shouldPublishProcessedEventForValidOrder() {
@@ -39,7 +41,8 @@ class OrderProcessingServiceTest {
                 validationService,
                 technicalFailureSimulationService,
                 repository,
-                publisher
+                publisher,
+                orderMetricsService
         );
         var event = OrderEventFactory.validOrder();
 
@@ -61,7 +64,8 @@ class OrderProcessingServiceTest {
                 validationService,
                 technicalFailureSimulationService,
                 repository,
-                publisher
+                publisher,
+                orderMetricsService
         );
         var event = OrderEventFactory.invalidWithoutOrderId();
 
