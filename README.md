@@ -51,7 +51,21 @@
                                          ↓
             ┌────────────────────────────┴────────────────────────────┐
             ↓                                                         ↓
-            [orders.processed topic]              [orders.failed topic]
+[orders.processed topic]                               [orders.failed / DLQ]
+
+
+────────────────────────────────────────────────────────────────────────────
+
+                                      Monitoring
+
+                                   [Service Layer]
+                                          │
+                                          ▼
+                   [Spring Boot Actuator (/actuator/prometheus)]
+                                          ↓
+                                     [Prometheus]
+                                          ↓
+                                       [Grafana]
 ```
 
 ---
@@ -156,13 +170,37 @@ docker compose up -d
 - Zookeeper (port 2181)
 - PostgreSQL (port 5433)
 
-#### 2. Запустить приложение
+#### 2. Поднять сервис мониторинга
+
+```bash
+ docker compose -f monitoring/docker-compose.monitoring.yml up -d
+```
+
+Поднимаются:
+
+- Alertmanager (port 9093)
+- Prometheus (port 9090)
+- Grafana (port 3000)
+
+#### 3. Запустить приложение
 
 ```bash
 ./gradlew bootRun --args="--spring.profiles.active=local"
 ```
 
-#### 3. Проверить, что сервис работает
+#### 4. Prometheus
+
+```bash
+http://localhost:9090/
+```
+
+#### 5. Grafana (login: admin, pass: admin)
+
+```bash
+http://localhost:3000/
+```
+
+#### 6. Проверить, что сервис работает
 
 ```bash
 http://localhost:8080/actuator/health
@@ -198,7 +236,7 @@ http://localhost:8080/actuator/health
 }
 ```
 
-#### 3. Swagger
+#### 7. Swagger
 
 ```bash
 http://localhost:8080/swagger-ui.html
@@ -280,6 +318,8 @@ Status code: **400 Bad Request**
 
 Для визуализации метрик может использоваться Grafana dashboard, подключённый к Prometheus.
 
+![Grafana Dashboard](./grafana-dashboard.png)
+
 Dashboard позволяет отслеживать:
 - HTTP latency и количество запросов
 - активность Kafka producer и consumer
@@ -287,11 +327,7 @@ Dashboard позволяет отслеживать:
 - состояние PostgreSQL connection pool
 - использование памяти и общее состояние JVM
 
-Такой подход делает проект ближе к production-практикам и демонстрирует навыки observability.
-
 ---
-
-
 
 ## 📈 Monitoring (Prometheus)
 
