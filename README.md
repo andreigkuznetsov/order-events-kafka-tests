@@ -1,16 +1,16 @@
-# order-events-kafka-tests
 
 [![TEST](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/andreigkuznetsov/order-events-kafka-tests/actions/workflows/test.yml)
 
-Integration and end-to-end tests for an event-driven order processing service built with Spring Boot, Apache Kafka, PostgreSQL, JUnit 5, and Testcontainers.
 
 # Kafka Order Processing Service
 
 ## 📌 Описание
 
-Проект представляет собой **Spring Boot сервис** для обработки заказов с использованием **Apache Kafka**.
+Проект представляет собой набор интеграционных и end-to-end тестов для сервиса обработки заказов, построенного на событийной архитектуре с использованием **Apache Kafka**.
+Тесты проверяют полный жизненный цикл заказа: от создания события до его обработки и сохранения в базе данных. Для изоляции тестов и воспроизводимости окружения используются **Testcontainers (Kafka и PostgreSQL)**.
+Внешние зависимости могут изолироваться с помощью mock-подхода (например, при unit-тестировании), однако в интеграционных и e2e тестах используются реальные сервисы через Testcontainers, что обеспечивает максимальную приближенность к production-среде. Также проект поддерживает сбор и визуализацию метрик через Prometheus и Grafana, что позволяет наблюдать поведение приложения, Kafka producer/consumer и инфраструктурных компонентов в удобном dashboard-интерфейсе.
 
-Реализует архитектуру, приближенную к production:
+Проект моделирует архитектуру, приближенную к production:
 - асинхронная обработка событий
 - идемпотентность
 - retry и Dead Letter Queue (DLQ)
@@ -27,10 +27,14 @@ Integration and end-to-end tests for an event-driven order processing service bu
 - Apache Kafka
 - PostgreSQL
 - JUnit 5
-- Testcontainers
+- Testcontainers (Kafka, PostgreSQL)
 - Awaitility
 - Gradle
-- Spring Actuator (Prometheus)
+- Spring Boot Actuator
+- Prometheus
+- Grafana
+- GitHub Actions (CI)
+- Mockito (для unit-тестирования и изоляции зависимостей)
 
 ---
 
@@ -118,6 +122,10 @@ Integration and end-to-end tests for an event-driven order processing service bu
 ### 🔹 Интеграционные тесты
 - REST → Kafka → БД → Kafka
 
+### 🔹 Unit тесты
+- Использование Mockito для изоляции зависимостей
+- Проверка бизнес-логики без поднятия инфраструктуры
+
 ### 🔹 Негативные сценарии
 - Невалидный заказ (отсутствуют поля)
 - Отрицательная сумма
@@ -160,10 +168,34 @@ docker compose up -d
 http://localhost:8080/actuator/health
 ```
 
-Ожидаемо:
+Ожидаемый ответ:
 
 ```bash
-{"status":"UP"}
+{
+  "status": "UP",
+  "components": {
+    "db": {
+      "status": "UP",
+      "details": {
+        "database": "PostgreSQL",
+        "validationQuery": "isValid()"
+      }
+    },
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        "total": 342819336192,
+        "free": 55184678912,
+        "threshold": 10485760,
+        "path": "D:\\git\\order-events-kafka-tests\\.",
+        "exists": true
+      }
+    },
+    "ping": {
+      "status": "UP"
+    }
+  }
+}
 ```
 
 #### 3. Swagger
@@ -244,6 +276,22 @@ Status code: **400 Bad Request**
 
 ---
 
+## 📊 Grafana dashboard
+
+Для визуализации метрик может использоваться Grafana dashboard, подключённый к Prometheus.
+
+Dashboard позволяет отслеживать:
+- HTTP latency и количество запросов
+- активность Kafka producer и consumer
+- обработку событий заказов
+- состояние PostgreSQL connection pool
+- использование памяти и общее состояние JVM
+
+Такой подход делает проект ближе к production-практикам и демонстрирует навыки observability.
+
+---
+
+
 
 ## 📈 Monitoring (Prometheus)
 
@@ -307,6 +355,19 @@ support        → тестовые утилиты
 
 ---
 
+## 🔄 CI (Continuous Integration)
+
+В проекте используется GitHub Actions для запуска автоматических проверок при каждом push и pull request.
+
+Workflow включает:
+- настройку JDK 21
+- кэширование зависимостей Gradle
+- выполнение unit, integration и e2e тестов
+
+Историю сборок можно посмотреть во вкладке Actions в репозитории.
+
+---
+
 ## 💡 Ключевые особенности
 
 - Использование Testcontainers для реалистичных тестов
@@ -316,28 +377,39 @@ support        → тестовые утилиты
 - Реализация идемпотентной обработки событий
 - Практическое использование Kafka
 - observability через Prometheus
+- Автоматический запуск тестов через GitHub Actions (CI)
+- Воспроизводимость тестового окружения без внешних зависимостей
+- Комбинация подходов: реальные сервисы (Testcontainers) + mocking (unit-тесты)
+- Визуализация метрик через Prometheus + Grafana
 
 ---
 
 ## 🔮 Возможные доработки
 
-- Retry механизм
-- Dead Letter Queue (DLQ)
-- docker-compose для локального запуска
-- CI (GitHub Actions)
-- Swagger / OpenAPI
+- Добавление contract-тестирования (например, с использованием Pact)
+- Расширение покрытия негативных сценариев
+- Интеграция с системой отчетности (Allure Report)
+- Добавление test coverage (JaCoCo)
+- Параллельный запуск тестов
+- Разделение тестов на уровни (unit / integration / e2e) с отдельными CI job
   
 ---
 
 ## ⭐ Цель проекта
 
 Проект демонстрирует навыки, необходимые для роли QA / AQA / SDET:
+- применение разных уровней тестирования (unit / integration / e2e)
+- комбинирование mocking и real environment подходов
 - тестирование backend-сервисов
-- работа с Kafka
+- работа с Kafka и асинхронными процессами
 - интеграционные и E2E тесты
 - тестирование распределённых систем
 - обработка ошибок и retry
 - observability (метрики)
+- использование Testcontainers для создания изолированного окружения
+- применение mocking-подхода для контроля внешних зависимостей
+- построение CI-процесса с использованием GitHub Actions
+- построение наблюдаемости системы через метрики и dashboard'ы
   
 ---
 
