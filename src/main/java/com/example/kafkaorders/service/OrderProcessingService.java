@@ -5,6 +5,7 @@ import com.example.kafkaorders.dto.OrderFailedEvent;
 import com.example.kafkaorders.dto.OrderProcessedEvent;
 import com.example.kafkaorders.entity.ProcessedOrderEntity;
 import com.example.kafkaorders.exception.OrderValidationException;
+import com.example.kafkaorders.monitoring.OrderMetricsService;
 import com.example.kafkaorders.repository.ProcessedOrderRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,17 +23,20 @@ public class OrderProcessingService {
     private final TechnicalFailureSimulationService technicalFailureSimulationService;
     private final ProcessedOrderRepository repository;
     private final OrderEventPublisher publisher;
+    private final OrderMetricsService metricsService;
 
     public OrderProcessingService(
             OrderValidationService validationService,
             TechnicalFailureSimulationService technicalFailureSimulationService,
             ProcessedOrderRepository repository,
-            OrderEventPublisher publisher
+            OrderEventPublisher publisher,
+            OrderMetricsService metricsService
     ) {
         this.validationService = validationService;
         this.technicalFailureSimulationService = technicalFailureSimulationService;
         this.repository = repository;
         this.publisher = publisher;
+        this.metricsService = metricsService;
     }
 
     public void process(OrderCreatedEvent event) {
@@ -41,12 +45,15 @@ public class OrderProcessingService {
         try {
             validationService.validate(event);
         } catch (OrderValidationException ex) {
+            metricsService.recordFailed();
+
             OrderFailedEvent failedEvent = new OrderFailedEvent(
                     event.eventId(),
                     event.orderId(),
                     ex.getMessage(),
                     Instant.now()
             );
+
             publisher.publishFailed(failedEvent);
             log.error("Validation failed, orderId={}, reason={}", event.orderId(), ex.getMessage());
             return;
@@ -83,6 +90,8 @@ public class OrderProcessingService {
             );
 
             publisher.publishProcessed(processedEvent);
+            metricsService.recordProcessed();
+
             log.info("Published processed event, orderId={}", event.orderId());
         } catch (DataIntegrityViolationException ex) {
             if (repository.existsByEventId(event.eventId())) {

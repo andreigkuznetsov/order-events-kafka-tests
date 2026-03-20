@@ -1,6 +1,7 @@
 package com.example.kafkaorders.config;
 
 import com.example.kafkaorders.exception.OrderValidationException;
+import com.example.kafkaorders.monitoring.OrderMetricsService;
 import com.example.kafkaorders.support.TopicNames;
 import org.apache.kafka.common.TopicPartition;
 import org.springframework.context.annotation.Bean;
@@ -16,11 +17,15 @@ public class KafkaErrorHandlerConfig {
     @Bean
     public DefaultErrorHandler kafkaErrorHandler(
             KafkaTemplate<String, Object> kafkaTemplate,
-            TopicNames topicNames
+            TopicNames topicNames,
+            OrderMetricsService metricsService
     ) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
                 kafkaTemplate,
-                (record, ex) -> new TopicPartition(topicNames.ordersDlq(), record.partition())
+                (record, ex) -> {
+                    metricsService.recordDlq();
+                    return new TopicPartition(topicNames.ordersDlq(), record.partition());
+                }
         );
 
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(

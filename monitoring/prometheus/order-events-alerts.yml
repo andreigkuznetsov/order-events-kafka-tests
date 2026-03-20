@@ -1,0 +1,72 @@
+groups:
+  - name: order-events-alerts
+    rules:
+      - alert: OrderServiceDown
+        expr: up{job="order-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: order-service
+        annotations:
+          summary: "Order service is down"
+          description: "Prometheus cannot scrape the order-service target for more than 1 minute."
+
+      - alert: OrderProcessingP95TooHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(orders_processing_duration_ms_seconds_bucket[5m]))) * 1000 > 500
+        for: 5m
+        labels:
+          severity: warning
+          service: order-service
+        annotations:
+          summary: "Order processing p95 exceeds SLA"
+          description: "Order processing p95 is above 500 ms for 5 minutes."
+
+      - alert: OrderBusinessErrorRateHigh
+        expr: (100 * sum(increase(orders_failed_total[5m])) / clamp_min(sum(increase(orders_created_total[5m])), 1)) > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: order-service
+        annotations:
+          summary: "Business error rate is high"
+          description: "Business validation error rate is above 5% for 10 minutes."
+
+      - alert: OrderDlqRateHigh
+        expr: (100 * sum(increase(orders_dlq_total[5m])) / clamp_min(sum(increase(orders_created_total[5m])), 1)) > 1
+        for: 5m
+        labels:
+          severity: critical
+          service: order-service
+        annotations:
+          summary: "DLQ rate is high"
+          description: "DLQ rate is above 1% for 5 minutes."
+
+      - alert: OrderSuccessRateLow
+        expr: (100 * sum(increase(orders_processed_total[5m])) / clamp_min(sum(increase(orders_created_total[5m])), 1)) < 95
+        for: 10m
+        labels:
+          severity: warning
+          service: order-service
+        annotations:
+          summary: "Order success rate dropped"
+          description: "Success rate is below 95% for 10 minutes."
+
+      - alert: HikariConnectionsPending
+        expr: sum(hikaricp_connections_pending) > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: order-service
+        annotations:
+          summary: "DB pool has pending connections"
+          description: "There are pending HikariCP connections for more than 5 minutes."
+
+      - alert: JvmHeapUsageHigh
+        expr: (sum(jvm_memory_used_bytes{area="heap"}) / clamp_min(sum(jvm_memory_max_bytes{area="heap"}), 1)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: order-service
+        annotations:
+          summary: "High JVM heap usage"
+          description: "Heap usage is above 85% for 10 minutes."

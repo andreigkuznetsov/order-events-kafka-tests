@@ -22,12 +22,20 @@ public class OrderEventPublisher {
     }
 
     public void publishProcessed(OrderProcessedEvent event) {
-        log.info("Publishing processed event to topic={}, orderId={}", topicNames.ordersProcessed(), event.orderId());
+        log.info(
+                "Publishing processed event to topic={}, orderId={}",
+                topicNames.ordersProcessed(),
+                event.orderId()
+        );
         kafkaTemplate.send(topicNames.ordersProcessed(), event.orderId(), event);
     }
 
     public void publishFailed(OrderFailedEvent event) {
-        log.info("Publishing failed event to topic={}, orderId={}", topicNames.ordersFailed(), event.orderId());
+        log.info(
+                "Publishing failed event to topic={}, orderId={}",
+                topicNames.ordersFailed(),
+                event.orderId()
+        );
         kafkaTemplate.send(topicNames.ordersFailed(), event.orderId(), event);
     }
 }
